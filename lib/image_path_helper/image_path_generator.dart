@@ -1,0 +1,91 @@
+import 'dart:io';
+
+import 'package:analyzer/dart/element/element.dart';
+import 'package:source_gen/source_gen.dart';
+import 'package:build/build.dart';
+
+import 'image_path_set.dart';
+
+
+class ImagePathGenerator extends GeneratorForAnnotation<ImagePathSet> {
+  String _codeContent = '';
+  String _pubspecContent = '';
+
+  @override
+  generateForAnnotatedElement(Element element, ConstantReader annotation, BuildStep buildStep) {
+    var pubspecFile = File('pubspec.yaml');
+
+    for (String imageName in pubspecFile.readAsLinesSync()) {
+      if (imageName.trim() == 'assets:') continue;
+      if (imageName.trim().toUpperCase().endsWith('.PNG')) continue;
+      if (imageName.trim().toUpperCase().endsWith('.JPEG')) continue;
+      if (imageName.trim().toUpperCase().endsWith('.SVG')) continue;
+      if (imageName.trim().toUpperCase().endsWith('.JPG')) continue;
+      _pubspecContent = "$_pubspecContent\n$imageName";
+    }
+    _pubspecContent = '${_pubspecContent.trim()}\n\n  assets:';
+
+    /// 图片文件路径
+    var imagePath = annotation.peek('pathName').stringValue;
+    if (!imagePath.endsWith('/')) {
+      imagePath = '$imagePath/';
+    }
+
+    /// 生成新的Dart文件名称
+    var newClassName = annotation.peek('newClassName').stringValue;
+
+    /// 遍历处理图片资源路径
+    handleFile(imagePath);
+
+    /// 添加图片路径到pubspec.yaml文件中
+    pubspecFile.writeAsString(_pubspecContent);
+
+    /// 返回生成的代码文件
+    return 'class $newClassName{\n'
+        '    $newClassName._();\n'
+        '    $_codeContent\n'
+        '}';
+  }
+
+  void handleFile(String path) {
+    var directory = Directory(path);
+    if (directory == null) {
+      throw '$path is not a directory.';
+    }
+
+    for (var file in directory.listSync()) {
+      var type = file.statSync().type;
+      if (type == FileSystemEntityType.directory) {
+        handleFile('${file.path}/');
+      } else if (type == FileSystemEntityType.file) {
+        var filePath = file.path;
+        var keyName = filePath.trim().toUpperCase();
+
+        if (!keyName.endsWith('.PNG') &&
+            !keyName.endsWith('.JPEG') &&
+            !keyName.endsWith('.SVG') &&
+            !keyName.endsWith('.JPG')) continue;
+        var key = keyName
+            .replaceAll(RegExp(path.toUpperCase()), '')
+            .replaceAll(RegExp('.PNG'), '')
+            .replaceAll(RegExp('.JPEG'), '')
+            .replaceAll(RegExp('.SVG'), '')
+            .replaceAll(RegExp('.JPG'), '')
+            .replaceAll(RegExp('@'), '_')
+            .replaceAll(RegExp('-'), '_');
+
+        if (key.startsWith(RegExp(r'^[0-9]'))) {
+          var paths = path.split('/');
+          var prefix = paths[paths.length - 2].toUpperCase();
+          key = prefix + key;
+        }
+
+        _codeContent = '$_codeContent\n\t\t\t\tstatic const $key = \'$filePath\';';
+
+        /// 此处用 \t 符号代替空格在读取的时候会报错，不知道什么情况。。。
+        _pubspecContent = '$_pubspecContent\n    - $filePath';
+      }
+    }
+  }
+}
+

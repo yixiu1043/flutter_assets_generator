@@ -1,0 +1,7 @@
+builders:
+  image_builder:
+    import: 'package:flutter_assets_generator/image_path_helper/builder.dart'
+    builder_factories: ['imagePathBuilder']
+    build_extensions: { '.dart': ['.g.dart'] }
+    auto_apply: root_package
+    build_to: source

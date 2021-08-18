@@ -1,0 +1,21 @@
+#targets:
+#  $default:
+#    builders:
+#      dy_module|image_builder:
+#        options: { 'write': true }
+#        enabled: true
+#        generate_for:
+#          - lib/image_path.dart
+#      source_gen|combining_builder:
+#        options: { 'write': true }
+#        enabled: true
+#        generate_for:
+#          exclude: [ 'lib/image_path.dart' ]
+
+builders:
+  image_builder:
+    import: 'package:flutter_assets_generator/image_path_helper/builder.dart'
+    builder_factories: [ 'imagePathBuilder' ]
+    build_extensions: { '.dart': [ '.g.dart' ] }
+    auto_apply: root_package
+    build_to: source
